@@ -1,0 +1,175 @@
+<template>
+  <div class="BlogList-container" ref="container" v-loading="isLoading">
+    <ul>
+      <li v-for="item in data.row" :key="item.title">
+        <div class="img-container" v-if="item.thumb">
+          <RouterLink
+            :to="{
+              name: 'BlogDetail',
+              params: {
+                id: item.id,
+              },
+            }"
+          >
+            <img v-lazy="item.thumb" :alt="item.title" :title="item.title" />
+          </RouterLink>
+        </div>
+        <div class="main">
+          <RouterLink
+            :to="{
+              name: 'BlogDetail',
+              params: {
+                id: item.id,
+              },
+            }"
+          >
+            <h2>{{ item.title }}</h2>
+          </RouterLink>
+          <div class="content">
+            <span>日期：{{ formatDate(item.createDate) }}</span>
+            <span>浏览{{ item.scanNumber }}</span>
+            <span>评论数：{{ item.commentNumber }}</span>
+            <RouterLink
+              :to="{
+                name: 'BlogCategory',
+                params: {
+                  categoryid: item.category.id,
+                },
+              }"
+              >{{ item.category.name }}</RouterLink
+            >
+          </div>
+          <div class="desc">{{ item.description }}</div>
+        </div>
+      </li>
+    </ul>
+    <Empty v-if="data.row.length === 0 && !isLoading" />
+    <Pager
+      :total="data.total"
+      :current="routerInfo.page"
+      :limit="routerInfo.limit"
+      @pageChange="handle"
+    />
+  </div>
+</template>
+
+<script>
+import Pager from "@/components/Pager";
+import fetchData from "@/mixins/fetchData";
+import { getBlog } from "@/api/blog";
+import { formatDate } from "@/utils";
+import mainScroll from "@/mixins/mainScroll";
+import Empty from "@/components/Empty";
+export default {
+  mixins: [fetchData({total:0,row:[]}),mainScroll("container")],
+  components: {
+    Pager,
+    Empty
+  },
+  computed: {
+    routerInfo() {
+      const categoryId = this.$route.params.category || -1;
+      const page = this.$route.query.page || 1;
+      const limit = this.$route.query.limit || 10;
+      return {
+        categoryId,
+        page,
+        limit,
+      };
+    },
+  },
+  watch: {
+    async $route() {
+      (this.isLoading = true),
+        //滚动高度为0
+        (this.$refs.container.scrollTop = 0);
+      this.data = await this.fetchData();
+      this.isLoading = false;
+    },
+  },
+  methods: {
+    formatDate,
+    async fetchData() {
+      return await getBlog(
+        this.routerInfo.page,
+        this.routerInfo.limit,
+        this.routerInfo.categoryId
+      ); //需要传入参数
+    },
+    handle(newPage) {
+      if (this.$route.categoryId === -1) {
+        //当前没有分类
+        this.$router.push({
+          name: "Blog",
+          query: {
+            page: newPage,
+            limit: this.routeInfo.limit,
+          },
+        });
+      } else {
+        //当前有分类
+        this.$router.push({
+          name: "BlogCategory",
+          params: {
+            categoryId: this.routerInfo.categoryId,
+          },
+          query: {
+            page: newPage,
+            limit: this.routerInfo.limit,
+          },
+        });
+      }
+    },
+  },
+};
+</script>
+
+<style scoped lang="less">
+@import "~@/styles/var.less";
+.BlogList-container {
+  line-height: 1.7;
+  position: relative;
+  padding: 20px;
+  overflow: scroll;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+li {
+  display: flex;
+  padding: 15px 0;
+  border-bottom: 1px solid @gray;
+  .img-container {
+    flex: 0 0 auto;
+    margin-right: 15px;
+    img {
+      display: block;
+      max-width: 200px;
+      border-radius: 5px;
+    }
+  }
+  .main {
+    flex: 1 1 auto;
+    h2 {
+      margin: 0;
+    }
+  }
+  .content {
+    font-size: 12px;
+    color: @gray;
+    span {
+      margin-right: 15px;
+    }
+  }
+  .desc {
+    margin: 15px 0;
+    font-size: 14px;
+  }
+}
+</style>
